@@ -1,12 +1,17 @@
 # Compiled Binaries
 stwp_server
 stwp_client
+stwp_browser
 
 # Objects and Archives
+obj/
 *.o
 *.obj
 *.a
 *.lib
+
+# ImGui Auto-generated Layout
+imgui.ini
 
 # OS Metadata
 .DS_Store
