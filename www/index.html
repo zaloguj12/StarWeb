@@ -1,20 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
     <meta charset="UTF-8">
-    <title>Hello World</title>
+    <title>Testing Page</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
-    <h1>Hello World</h1>
-    <h2>Hello World</h2>
-    <h3>Hello World</h3>
-    <h4>Hello World</h4>
-    <h5>Hello World</h5>
-    <h6>Hello World</h6>
-    <p>Hello World</p>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Welcome to StarWeB</h1>
+            <p class="subtitle"> testing testing stardance bla bla yey</p>
+        </div>
+
+        <h2>About the Project</h2>
+        <p class="desc">
+            StarWeb is my attempt at building an internet of my own. A custom protocol, a custom URL scheme, and a
+            client and server that communicate using them.I put together STWP, my own protocol with request and response
+            parsing, structured similarly to HTTP but built from scratch.
+        </p>
+
+        <h2>form test</h2>
+        <div>
+            <p class="label">login name</p>
+            <input type="text" class="input-field" placeholder="Enter your name..." id="name-input">
+
+            <p class="label">login password</p>
+            <textarea class="textarea-field" placeholder="Type your password here..." id="msg-text"></textarea>
+
+            <button class="btn-primary" onclick="alert('Thank you for your feedback!')">Login</button>
+        </div>
+    </div>
 </body>
 
 </html>
