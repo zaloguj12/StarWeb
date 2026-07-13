@@ -12,6 +12,7 @@ obj/
 
 # CMake build directory
 build/
+build-linux/
 
 # vcpkg (Windows dependency manager checkout)
 vcpkg/
@@ -28,3 +29,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# cache
+
+/cache
