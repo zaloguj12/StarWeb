@@ -22,3 +22,10 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# builds
+/build
+/build-linux
+
+# cache
+/cache
