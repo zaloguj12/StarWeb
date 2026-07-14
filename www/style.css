@@ -66,3 +66,18 @@ h2 {
     font-size: 1.0;
     margin-bottom: 2;
 }
+
+.panel {
+    background: #f8fafc;
+    border-radius: 10;
+    padding: 14;
+    margin-bottom: 20;
+    border-width: 1;
+    border-color: #e2e8f0;
+}
+
+.tag {
+    color: #64748b;
+    font-size: 0.85;
+    margin-bottom: 6;
+}

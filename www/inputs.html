@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Form Controls</title>
+  <style>
+    body { background: #ffffff; color: #202124; padding: 24px; }
+    h1 { color: #9461db; font-size: 24px; }
+    .row { margin-bottom: 12px; }
+    label { color: #333; margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <h1>input types</h1>
+
+  <div class="row"><label>Text</label><input type="text" name="fullname" placeholder="Enter text"></div>
+  <div class="row"><label>Password</label><input type="password" name="pw" value="secret"></div>
+  <div class="row"><label>Email</label><input type="email" name="email"></div>
+  <div class="row"><label>Search</label><input type="search" name="q" placeholder="Search"></div>
+  <div class="row"><label>URL</label><input type="url" name="site"></div>
+  <div class="row"><label>Tel</label><input type="tel" name="phone" placeholder="(555) 555-5555"></div>
+  <div class="row"><label>Number</label><input type="number" name="qty" value="42" min="0" max="100" step="5"></div>
+
+  <div class="row"><label>Date</label><input type="date" name="dob"></div>
+  <div class="row"><label>Time</label><input type="time" name="start"></div>
+  <div class="row"><label>Datetime</label><input type="datetime-local" name="when"></div>
+  <div class="row"><label>Month</label><input type="month" name="mo"></div>
+  <div class="row"><label>Week</label><input type="week" name="wk"></div>
+
+  <div class="row"><input type="checkbox" name="remember" checked><label>Remember me</label></div>
+  <div class="row"><input type="checkbox" name="subscribe"><label>Star github</label></div>
+
+  <div class="row">
+    <input type="radio" name="plan" value="free" checked><label>option</label>
+    <input type="radio" name="plan" value="pro"><label>optiion</label>
+    <input type="radio" name="plan" value="team"><label>option</label>
+  </div>
+
+  <div class="row"><label>Range</label><input type="range" name="volume" min="0" max="100" step="10" value="60"></div>
+  <div class="row"><label>Color</label><input type="color" name="tint" value="#9461db"></div>
+  <div class="row"><label>File</label><input type="file" name="upload"></div>
+
+  <div class="row">
+    <input type="submit" value="Submit">
+    <input type="reset" value="Reset">
+    <input type="button" value="Click me" onclick="alert('Hello from a button input!')">
+  </div>
+
+  <input type="hidden" name="token" value="abc123">
+</body>
+</html>

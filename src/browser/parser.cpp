@@ -34,6 +34,62 @@ std::string collapse_whitespace(std::string_view str) {
     return result;
 }
 
+// Append a Unicode code point to a UTF-8 string.
+static void append_utf8(std::string& out, unsigned int cp) {
+    if (cp <= 0x7F) {
+        out += (char)cp;
+    } else if (cp <= 0x7FF) {
+        out += (char)(0xC0 | (cp >> 6));
+        out += (char)(0x80 | (cp & 0x3F));
+    } else if (cp <= 0xFFFF) {
+        out += (char)(0xE0 | (cp >> 12));
+        out += (char)(0x80 | ((cp >> 6) & 0x3F));
+        out += (char)(0x80 | (cp & 0x3F));
+    } else {
+        out += (char)(0xF0 | (cp >> 18));
+        out += (char)(0x80 | ((cp >> 12) & 0x3F));
+        out += (char)(0x80 | ((cp >> 6) & 0x3F));
+        out += (char)(0x80 | (cp & 0x3F));
+    }
+}
+
+// Decode the common named/numeric HTML entities (&lt; &amp; &#39; &#x27; …).
+std::string decode_entities(std::string_view str) {
+    std::string out;
+    out.reserve(str.size());
+    for (size_t i = 0; i < str.size();) {
+        if (str[i] != '&') { out += str[i++]; continue; }
+        size_t semi = str.find(';', i + 1);
+        if (semi == std::string_view::npos || semi - i > 12) { out += str[i++]; continue; }
+        std::string_view ent = str.substr(i + 1, semi - i - 1);
+        bool handled = true;
+        if (ent == "lt") out += '<';
+        else if (ent == "gt") out += '>';
+        else if (ent == "amp") out += '&';
+        else if (ent == "quot") out += '"';
+        else if (ent == "apos") out += '\'';
+        else if (ent == "nbsp") out += ' ';
+        else if (ent == "copy") append_utf8(out, 0x00A9);
+        else if (ent == "reg") append_utf8(out, 0x00AE);
+        else if (ent == "mdash") append_utf8(out, 0x2014);
+        else if (ent == "ndash") append_utf8(out, 0x2013);
+        else if (ent == "hellip") append_utf8(out, 0x2026);
+        else if (!ent.empty() && ent[0] == '#') {
+            try {
+                unsigned int cp = (ent.size() > 1 && (ent[1] == 'x' || ent[1] == 'X'))
+                    ? (unsigned int)std::stoul(std::string(ent.substr(2)), nullptr, 16)
+                    : (unsigned int)std::stoul(std::string(ent.substr(1)), nullptr, 10);
+                append_utf8(out, cp);
+            } catch (...) { handled = false; }
+        } else {
+            handled = false;
+        }
+        if (handled) i = semi + 1;
+        else out += str[i++];
+    }
+    return out;
+}
+
 ImVec4 parse_color(std::string_view str) {
     std::string s = trim_spaces(str);
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -185,10 +241,51 @@ void parse_css_properties(const std::string& properties, CssStyle& style) {
             style.has_border_color = true;
         } else if (name == "font-size") {
             try {
-                style.font_size = std::stof(val);
+                size_t consumed = 0;
+                float num = std::stof(val, &consumed);
+                std::string unit = trim_spaces(std::string_view(val).substr(consumed));
+                // font_size is a scale relative to the 16px base UI font.
+                if (unit == "px")                 style.font_size = num / 16.0f;
+                else if (unit == "pt")            style.font_size = (num * 96.0f / 72.0f) / 16.0f;
+                else if (unit == "%")             style.font_size = num / 100.0f;
+                else if (unit == "em" || unit == "rem") style.font_size = num;
+                else                               style.font_size = num; // bare number: legacy multiplier
             } catch(...) {}
         } else if (name == "display") {
             style.display = val;
+        } else if (name == "flex-direction") {
+            style.flex_direction = val;
+        } else if (name == "justify-content") {
+            style.justify_content = val;
+        } else if (name == "align-items") {
+            style.align_items = val;
+        } else if (name == "align-self") {
+            style.align_self = val;
+        } else if (name == "flex-wrap") {
+            style.flex_wrap = val;
+        } else if (name == "gap") {
+            try { float g = std::stof(val); style.row_gap = style.column_gap = g; } catch(...) {}
+        } else if (name == "row-gap") {
+            try { style.row_gap = std::stof(val); } catch(...) {}
+        } else if (name == "column-gap") {
+            try { style.column_gap = std::stof(val); } catch(...) {}
+        } else if (name == "flex-grow") {
+            try { style.flex_grow = std::stof(val); } catch(...) {}
+        } else if (name == "flex-shrink") {
+            try { style.flex_shrink = std::stof(val); } catch(...) {}
+        } else if (name == "flex-basis") {
+            if (val == "auto") { style.flex_basis = -1.0f; }
+            else { try { style.flex_basis = std::stof(val); } catch(...) {} }
+        } else if (name == "flex") {
+            // flex: <grow> [shrink] [basis]
+            try {
+                std::istringstream iss(val);
+                std::string g, s, b;
+                iss >> g >> s >> b;
+                if (!g.empty()) style.flex_grow = std::stof(g);
+                if (!s.empty()) { try { style.flex_shrink = std::stof(s); } catch(...) {} }
+                if (!b.empty() && b != "auto") { try { style.flex_basis = std::stof(b); } catch(...) {} }
+            } catch(...) {}
         }
     }
 }
@@ -220,6 +317,23 @@ DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
     std::vector<DomNode*> node_stack;
     node_stack.push_back(&root);
 
+    // Pending run of character data between tags. Flushed as a "#text" child node
+    // (interleaved with element children so document order is preserved) and also
+    // concatenated onto the parent's text_content for leaf consumers.
+    std::string text_run;
+    auto flush_text = [&]() {
+        if (text_run.empty()) return;
+        std::string decoded = decode_entities(text_run);
+        node_stack.back()->text_content += decoded;
+        if (!trim_spaces(decoded).empty()) {
+            DomNode text_node;
+            text_node.tag = "#text";
+            text_node.text_content = decoded;
+            node_stack.back()->children.push_back(std::move(text_node));
+        }
+        text_run.clear();
+    };
+
     size_t i = 0;
     size_t len = html.size();
 
@@ -227,10 +341,12 @@ DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
         if (html[i] == '<') {
             size_t tag_end = html.find('>', i);
             if (tag_end == std::string::npos) {
-                node_stack.back()->text_content += html[i];
+                text_run += html[i];
                 i++;
                 continue;
             }
+
+            flush_text();
 
             std::string tag_inner = html.substr(i + 1, tag_end - i - 1);
             i = tag_end + 1;
@@ -332,6 +448,16 @@ DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
                     child.value = attr_val;
                 } else if (attr_name == "placeholder") {
                     child.placeholder = attr_val;
+                } else if (attr_name == "name") {
+                    child.name = attr_val;
+                } else if (attr_name == "min") {
+                    child.min_val = attr_val;
+                } else if (attr_name == "max") {
+                    child.max_val = attr_val;
+                } else if (attr_name == "step") {
+                    child.step_val = attr_val;
+                } else if (attr_name == "checked") {
+                    child.checked = true;
                 } else if (attr_name == "autoplay") {
                     child.autoplay = true;
                 } else if (attr_name == "loop") {
@@ -349,10 +475,11 @@ DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
                 node_stack.push_back(&(node_stack.back()->children.back()));
             }
         } else {
-            node_stack.back()->text_content += html[i];
+            text_run += html[i];
             i++;
         }
     }
+    flush_text();
 
     return root;
 }
@@ -421,4 +548,15 @@ void apply_style(CssStyle& dest, const CssStyle& src) {
     }
     if (src.font_size != 1.0f) dest.font_size = src.font_size;
     if (!src.display.empty()) dest.display = src.display;
+
+    if (!src.flex_direction.empty()) dest.flex_direction = src.flex_direction;
+    if (!src.justify_content.empty()) dest.justify_content = src.justify_content;
+    if (!src.align_items.empty()) dest.align_items = src.align_items;
+    if (!src.align_self.empty()) dest.align_self = src.align_self;
+    if (!src.flex_wrap.empty()) dest.flex_wrap = src.flex_wrap;
+    if (src.row_gap >= 0.0f) dest.row_gap = src.row_gap;
+    if (src.column_gap >= 0.0f) dest.column_gap = src.column_gap;
+    if (src.flex_grow >= 0.0f) dest.flex_grow = src.flex_grow;
+    if (src.flex_shrink >= 0.0f) dest.flex_shrink = src.flex_shrink;
+    if (src.flex_basis >= 0.0f) dest.flex_basis = src.flex_basis;
 }

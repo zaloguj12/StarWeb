@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>StarWeb Flexbox Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Flexbox Layout</h1>
+            <p class="subtitle">Powered by Meta's Yoga layout engine</p>
+        </div>
+
+        <p class="desc">
+            Every example below only uses properties StarWeb's layout engine currently understands:
+            <code>display:flex</code>, <code>flex-direction</code>, <code>flex-wrap</code>,
+            <code>justify-content</code>, <code>align-items</code>, <code>align-self</code>,
+            <code>gap</code> / <code>row-gap</code> / <code>column-gap</code>, and
+            <code>flex-grow</code> / <code>flex-shrink</code> / <code>flex-basis</code>.
+        </p>
+
+        <h2>justify-content</h2>
+        <p class="desc">Distributes items along the main axis. Same three boxes, six ways.</p>
+        <div class="panel">
+            <p class="tag">flex-start (default)</p>
+            <div style="display:flex; justify-content:flex-start; gap:10; margin-bottom:14">
+                <div style="width:60; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">center</p>
+            <div style="display:flex; justify-content:center; gap:10; margin-bottom:14">
+                <div style="width:60; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">flex-end</p>
+            <div style="display:flex; justify-content:flex-end; gap:10; margin-bottom:14">
+                <div style="width:60; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">space-between</p>
+            <div style="display:flex; justify-content:space-between; gap:10; margin-bottom:14">
+                <div style="width:60; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">space-around</p>
+            <div style="display:flex; justify-content:space-around; gap:10; margin-bottom:14">
+                <div style="width:60; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">space-evenly</p>
+            <div style="display:flex; justify-content:space-evenly; gap:10">
+                <div style="width:60; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+        </div>
+
+        <h2>align-items</h2>
+        <p class="desc">Positions items on the cross axis inside a fixed-height row. Boxes A/B/C keep different heights (28 / 48 / 68) so the alignment is easy to spot, except in the "stretch" row, where no height is set and the boxes fill the container instead.</p>
+        <div class="panel">
+            <p class="tag">stretch (default)</p>
+            <div style="display:flex; align-items:stretch; gap:10; height:96; background:#eef2f7; border-radius:8; padding:10; margin-bottom:14">
+                <div style="width:60; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">flex-start</p>
+            <div style="display:flex; align-items:flex-start; gap:10; height:96; background:#eef2f7; border-radius:8; padding:10; margin-bottom:14">
+                <div style="width:60; height:28; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; height:48; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; height:68; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">center</p>
+            <div style="display:flex; align-items:center; gap:10; height:96; background:#eef2f7; border-radius:8; padding:10; margin-bottom:14">
+                <div style="width:60; height:28; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; height:48; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; height:68; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+
+            <p class="tag">flex-end</p>
+            <div style="display:flex; align-items:flex-end; gap:10; height:96; background:#eef2f7; border-radius:8; padding:10">
+                <div style="width:60; height:28; padding:12; border-radius:6; background:#5b3fb5"><p style="color:#ffffff; text-align:center">A</p></div>
+                <div style="width:60; height:48; padding:12; border-radius:6; background:#3f7bb5"><p style="color:#ffffff; text-align:center">B</p></div>
+                <div style="width:60; height:68; padding:12; border-radius:6; background:#3fb58a"><p style="color:#ffffff; text-align:center">C</p></div>
+            </div>
+        </div>
+
+        <h2>flex-direction</h2>
+        <p class="desc">Sets which way the main axis runs. Boxes 1-2-3 keep their document order in every case: only the direction they flow changes.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:16">
+            <div class="panel" style="flex-grow:1; flex-basis:210; margin-bottom:0">
+                <p class="tag">row</p>
+                <div style="display:flex; flex-direction:row; gap:8">
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#5b3fb5"><p style="color:#ffffff">1</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3f7bb5"><p style="color:#ffffff">2</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3fb58a"><p style="color:#ffffff">3</p></div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow:1; flex-basis:210; margin-bottom:0">
+                <p class="tag">row-reverse</p>
+                <div style="display:flex; flex-direction:row-reverse; gap:8">
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#5b3fb5"><p style="color:#ffffff">1</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3f7bb5"><p style="color:#ffffff">2</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3fb58a"><p style="color:#ffffff">3</p></div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow:1; flex-basis:210; margin-bottom:0">
+                <p class="tag">column</p>
+                <div style="display:flex; flex-direction:column; gap:8">
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#5b3fb5"><p style="color:#ffffff">1</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3f7bb5"><p style="color:#ffffff">2</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3fb58a"><p style="color:#ffffff">3</p></div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow:1; flex-basis:210; margin-bottom:0">
+                <p class="tag">column-reverse</p>
+                <div style="display:flex; flex-direction:column-reverse; gap:8">
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#5b3fb5"><p style="color:#ffffff">1</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3f7bb5"><p style="color:#ffffff">2</p></div>
+                    <div style="width:44; height:44; display:flex; align-items:center; justify-content:center; border-radius:6; background:#3fb58a"><p style="color:#ffffff">3</p></div>
+                </div>
+            </div>
+        </div>
+
+        <h2>flex-grow, flex-shrink &amp; flex-basis</h2>
+        <div class="panel">
+            <p class="tag">flex-grow: 1, 2, 1 (the middle box claims twice the leftover space)</p>
+            <div style="display:flex; gap:10; margin-bottom:14">
+                <div style="flex-grow:1; height:50; border-radius:6; background:#5b3fb5; padding:10"><p style="color:#ffffff; text-align:center">grow: 1</p></div>
+                <div style="flex-grow:2; height:50; border-radius:6; background:#3f7bb5; padding:10"><p style="color:#ffffff; text-align:center">grow: 2</p></div>
+                <div style="flex-grow:1; height:50; border-radius:6; background:#3fb58a; padding:10"><p style="color:#ffffff; text-align:center">grow: 1</p></div>
+            </div>
+
+            <p class="tag">flex-basis: 200, flex-grow: 0 (items sit at their basis size and never grow)</p>
+            <div style="display:flex; gap:10; margin-bottom:14">
+                <div style="flex-basis:200; flex-grow:0; height:50; border-radius:6; background:#b5883f; padding:10"><p style="color:#ffffff; text-align:center">basis: 200</p></div>
+                <div style="flex-basis:200; flex-grow:0; height:50; border-radius:6; background:#8a3fb5; padding:10"><p style="color:#ffffff; text-align:center">basis: 200</p></div>
+                <div style="flex-basis:200; flex-grow:0; height:50; border-radius:6; background:#b5563f; padding:10"><p style="color:#ffffff; text-align:center">basis: 200</p></div>
+            </div>
+
+            <p class="tag">flex-shrink: 0 (a 700-wide row holding three 300-wide boxes; they refuse to shrink and overflow it)</p>
+            <div style="display:flex; gap:10; width:700; margin-bottom:14; background:#eef2f7; border-radius:8; padding:10">
+                <div style="flex-basis:300; flex-shrink:0; height:44; border-radius:6; background:#444a66; padding:10"><p style="color:#ffffff; text-align:center">basis: 300, shrink: 0</p></div>
+                <div style="flex-basis:300; flex-shrink:0; height:44; border-radius:6; background:#444a66; padding:10"><p style="color:#ffffff; text-align:center">basis: 300, shrink: 0</p></div>
+                <div style="flex-basis:300; flex-shrink:0; height:44; border-radius:6; background:#444a66; padding:10"><p style="color:#ffffff; text-align:center">basis: 300, shrink: 0</p></div>
+            </div>
+
+            <p class="tag">flex-shrink: 1 (the same 700-wide row, now allowed to shrink each box to fit)</p>
+            <div style="display:flex; gap:10; width:700; background:#eef2f7; border-radius:8; padding:10">
+                <div style="flex-basis:300; flex-shrink:1; height:44; border-radius:6; background:#444a66; padding:10"><p style="color:#ffffff; text-align:center">basis: 300, shrink: 1</p></div>
+                <div style="flex-basis:300; flex-shrink:1; height:44; border-radius:6; background:#444a66; padding:10"><p style="color:#ffffff; text-align:center">basis: 300, shrink: 1</p></div>
+                <div style="flex-basis:300; flex-shrink:1; height:44; border-radius:6; background:#444a66; padding:10"><p style="color:#ffffff; text-align:center">basis: 300, shrink: 1</p></div>
+            </div>
+        </div>
+
+        <h2>flex-wrap</h2>
+        <div class="panel">
+            <p class="tag">wrap (a 500-wide row of fixed cards wraps onto new lines once it runs out of room)</p>
+            <div style="display:flex; flex-wrap:wrap; gap:12; width:500; margin-bottom:14">
+                <div style="width:150; height:50; border-radius:8; background:#5b3fb5; padding:10"><p style="color:#ffffff">Card 1</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#5b3fb5; padding:10"><p style="color:#ffffff">Card 2</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#5b3fb5; padding:10"><p style="color:#ffffff">Card 3</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#5b3fb5; padding:10"><p style="color:#ffffff">Card 4</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#5b3fb5; padding:10"><p style="color:#ffffff">Card 5</p></div>
+            </div>
+
+            <p class="tag">wrap-reverse (same 500-wide row; new lines stack upward instead)</p>
+            <div style="display:flex; flex-wrap:wrap-reverse; gap:12; width:500">
+                <div style="width:150; height:50; border-radius:8; background:#3f7bb5; padding:10"><p style="color:#ffffff">Card 1</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#3f7bb5; padding:10"><p style="color:#ffffff">Card 2</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#3f7bb5; padding:10"><p style="color:#ffffff">Card 3</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#3f7bb5; padding:10"><p style="color:#ffffff">Card 4</p></div>
+                <div style="width:150; height:50; border-radius:8; background:#3f7bb5; padding:10"><p style="color:#ffffff">Card 5</p></div>
+            </div>
+        </div>
+
+        <h2>align-self overrides</h2>
+        <p class="desc">A single item can opt out of the container's align-items value with its own align-self.</p>
+        <div class="panel">
+            <div style="display:flex; align-items:flex-start; gap:10; height:110; background:#eef2f7; border-radius:8; padding:10">
+                <div style="width:70; height:40; border-radius:6; background:#5b3fb5; padding:8"><p style="color:#ffffff; text-align:center">start</p></div>
+                <div style="width:70; height:40; align-self:center; border-radius:6; background:#3f7bb5; padding:8"><p style="color:#ffffff; text-align:center">center</p></div>
+                <div style="width:70; height:40; align-self:flex-end; border-radius:6; background:#3fb58a; padding:8"><p style="color:#ffffff; text-align:center">end</p></div>
+                <div style="width:70; align-self:stretch; border-radius:6; background:#b5883f; padding:8"><p style="color:#ffffff; text-align:center">stretch</p></div>
+            </div>
+        </div>
+
+        <p class="desc"><a href="/index.html">Back to home</a></p>
+    </div>
+</body>
+
+</html>

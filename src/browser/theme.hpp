@@ -29,6 +29,11 @@ namespace Theme {
     
     constexpr ImVec4 input_text_cursor       = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
     constexpr ImVec4 text                    = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
+
+    // Accent used to tint the Chromium-style form controls (checkbox fill,
+    // radio dot, slider, focus, date/time picker highlights).
+    constexpr ImVec4 form_accent             = ImVec4(0.58f, 0.38f, 0.86f, 1.00f); // ~148,97,219
+    constexpr ImVec4 form_accent_hover       = ImVec4(0.49f, 0.30f, 0.78f, 1.00f); // ~125,77,199
     
     constexpr ImVec4 btn_hover_highlight     = ImVec4(0.70f, 0.55f, 0.90f, 0.20f);
     constexpr ImVec4 btn_active_highlight    = ImVec4(0.70f, 0.55f, 0.90f, 0.35f);

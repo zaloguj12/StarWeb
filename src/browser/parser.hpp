@@ -6,6 +6,7 @@
 
 std::string trim_spaces(std::string_view str);
 std::string collapse_whitespace(std::string_view str);
+std::string decode_entities(std::string_view str);
 ImVec4 parse_color(std::string_view str);
 void parse_background(std::string_view value, CssStyle& style);
 void parse_css_properties(const std::string& properties, CssStyle& style);

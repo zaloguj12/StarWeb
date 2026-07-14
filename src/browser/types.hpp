@@ -35,6 +35,18 @@ struct CssStyle {
     
     float font_size = 1.0f;
     std::string display = "";
+
+    // flexbox; empty string / -1 means unset
+    std::string flex_direction = "";
+    std::string justify_content = "";
+    std::string align_items = "";
+    std::string align_self = "";
+    std::string flex_wrap = "";
+    float row_gap = -1.0f;
+    float column_gap = -1.0f;
+    float flex_grow = -1.0f;
+    float flex_shrink = -1.0f;
+    float flex_basis = -1.0f;
 };
 
 struct DomNode {
@@ -48,6 +60,15 @@ struct DomNode {
     std::string type;
     std::string value;
     std::string placeholder;
+    std::string name;
+    std::string min_val;
+    std::string max_val;
+    std::string step_val;
+    bool checked = false;
+    // Original values captured on first render, for form reset.
+    std::string default_value;
+    bool default_checked = false;
+    bool defaults_captured = false;
     std::string inline_style;
     bool has_inline_style = false;
     CssStyle parsed_inline_style;
@@ -100,6 +121,8 @@ struct Tab {
     bool reset_scroll_next_frame = false;
     
     std::string title = "New Tab";
+    // Radio-button group state: form control name -> selected node address.
+    std::unordered_map<std::string, uintptr_t> radio_selection;
     std::unordered_map<std::string, TextureInfo> page_textures;
     std::unordered_map<std::string, class VideoPlayer*> active_players;
 };

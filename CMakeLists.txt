@@ -4,7 +4,7 @@ project(starweb LANGUAGES C CXX)
 # Cross-platform build. Media backend: AVFoundation on macOS, FFmpeg+miniaudio
 # elsewhere (see BUILDING.md for per-platform dependencies).
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release)
@@ -25,6 +25,14 @@ add_library(imgui STATIC
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+
+# --- Yoga flexbox layout engine (vendored) ---------------------------------
+set(YOGA_DIR ${SRC}/thirdparty/yoga)
+file(GLOB_RECURSE YOGA_SRCS ${YOGA_DIR}/yoga/*.cpp)
+add_library(yoga STATIC ${YOGA_SRCS})
+target_include_directories(yoga PUBLIC ${YOGA_DIR})
+target_compile_features(yoga PRIVATE cxx_std_20)
+target_compile_options(yoga PUBLIC -include ${SRC}/thirdparty/yoga_compat.hpp)
 
 # --- GLFW + OpenGL ----------------------------------------------------------
 set(OpenGL_GL_PREFERENCE GLVND)
@@ -65,10 +73,11 @@ set(BROWSER_SRCS
     ${SRC}/browser/parser.cpp
     ${SRC}/browser/fetcher.cpp
     ${SRC}/browser/renderer.cpp
+    ${SRC}/browser/layout.cpp
 )
 
 add_executable(stwp_browser ${BROWSER_SRCS})
-target_link_libraries(stwp_browser PRIVATE imgui Threads::Threads ${NET_LIBS})
+target_link_libraries(stwp_browser PRIVATE imgui yoga Threads::Threads ${NET_LIBS})
 
 if(APPLE)
     target_sources(stwp_browser PRIVATE ${SRC}/browser/media_player_mac.mm)

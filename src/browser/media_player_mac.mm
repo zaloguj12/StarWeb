@@ -249,4 +249,22 @@ int VideoPlayer::get_width() const {
 int VideoPlayer::get_height() const {
     return ((__bridge ObjCVideoPlayer*)impl_).height;
 }
+
+// Native file open dialog for <input type="file">. Returns the chosen path,
+// or an empty string if cancelled.
+#import <AppKit/AppKit.h>
+#include <string>
+std::string PlatformOpenFileDialog() {
+    @autoreleasepool {
+        NSOpenPanel* panel = [NSOpenPanel openPanel];
+        [panel setCanChooseFiles:YES];
+        [panel setCanChooseDirectories:NO];
+        [panel setAllowsMultipleSelection:NO];
+        if ([panel runModal] == NSModalResponseOK) {
+            NSURL* url = [[panel URLs] firstObject];
+            if (url) return std::string([[url path] UTF8String]);
+        }
+    }
+    return std::string();
+}
 #endif
