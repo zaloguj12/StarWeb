@@ -51,3 +51,15 @@ or linked as a system/vcpkg dependency.
 - **How it's used**: vendored single-header library (`src/thirdparty/stb_image.h`)
   for decoding images (PNG/JPEG/etc.) embedded in fetched pages.
 - **Source**: https://github.com/nothings/stb
+
+## Lua
+
+- **License**: MIT.
+- **Version**: 5.4.7 (unmodified upstream sources).
+- **How it's used**: vendored in `src/thirdparty/lua/`, compiled as a generic
+  ANSI C static library (no `LUA_USE_*` platform macros, so `dlopen`/`loadlib`
+  are disabled). Provides the browser's page-scripting engine; page scripts run
+  in a deny-by-default sandbox (see `src/browser/script.{hpp,cpp}`).
+- **License text**: the MIT notice is in the copyright block at the end of
+  `src/thirdparty/lua/lua.h`.
+- **Source**: https://www.lua.org

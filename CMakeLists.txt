@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(starweb LANGUAGES C CXX)
 
-# Cross-platform build. Media backend: AVFoundation on macOS, FFmpeg+miniaudio
-# elsewhere (see BUILDING.md for per-platform dependencies).
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -15,7 +12,6 @@ set(IMGUI_DIR ${SRC}/thirdparty/imgui)
 
 find_package(Threads REQUIRED)
 
-# --- ImGui (core + GLFW/OpenGL3 backends) ----------------------------------
 add_library(imgui STATIC
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -26,7 +22,6 @@ add_library(imgui STATIC
 )
 target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 
-# --- Yoga flexbox layout engine (vendored) ---------------------------------
 set(YOGA_DIR ${SRC}/thirdparty/yoga)
 file(GLOB_RECURSE YOGA_SRCS ${YOGA_DIR}/yoga/*.cpp)
 add_library(yoga STATIC ${YOGA_SRCS})
@@ -34,11 +29,14 @@ target_include_directories(yoga PUBLIC ${YOGA_DIR})
 target_compile_features(yoga PRIVATE cxx_std_20)
 target_compile_options(yoga PUBLIC -include ${SRC}/thirdparty/yoga_compat.hpp)
 
-# --- GLFW + OpenGL ----------------------------------------------------------
+set(LUA_DIR ${SRC}/thirdparty/lua)
+file(GLOB LUA_SRCS ${LUA_DIR}/*.c)
+add_library(lua STATIC ${LUA_SRCS})
+target_include_directories(lua PUBLIC ${LUA_DIR})
+
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 
-# Prefer a CMake package (find_package(glfw3)); fall back to pkg-config.
 find_package(glfw3 QUIET)
 if(glfw3_FOUND)
     set(GLFW_TARGET glfw)
@@ -53,20 +51,17 @@ else()
 endif()
 target_link_libraries(imgui PUBLIC ${GLFW_TARGET} OpenGL::GL)
 
-# --- Networking libraries (Winsock on Windows) ------------------------------
 set(NET_LIBS "")
 if(WIN32)
     set(NET_LIBS ws2_32)
 endif()
 
-# --- Server & client --------------------------------------------------------
 add_executable(stwp_server ${SRC}/server/server.cpp)
 target_link_libraries(stwp_server PRIVATE Threads::Threads ${NET_LIBS})
 
 add_executable(stwp_client ${SRC}/client/client.cpp)
 target_link_libraries(stwp_client PRIVATE Threads::Threads ${NET_LIBS})
 
-# --- Browser: pick the media backend for this platform ----------------------
 set(BROWSER_SRCS
     ${SRC}/browser/browser.cpp
     ${SRC}/browser/globals.cpp
@@ -74,10 +69,11 @@ set(BROWSER_SRCS
     ${SRC}/browser/fetcher.cpp
     ${SRC}/browser/renderer.cpp
     ${SRC}/browser/layout.cpp
+    ${SRC}/browser/script.cpp
 )
 
 add_executable(stwp_browser ${BROWSER_SRCS})
-target_link_libraries(stwp_browser PRIVATE imgui yoga Threads::Threads ${NET_LIBS})
+target_link_libraries(stwp_browser PRIVATE imgui yoga lua Threads::Threads ${NET_LIBS})
 
 if(APPLE)
     target_sources(stwp_browser PRIVATE ${SRC}/browser/media_player_mac.mm)
@@ -88,7 +84,6 @@ if(APPLE)
         "-framework AudioToolbox" "-framework QuartzCore"
         "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 else()
-    # FFmpeg + miniaudio backend for Windows / Linux.
     target_sources(stwp_browser PRIVATE ${SRC}/browser/media_player_ffmpeg.cpp)
 
     find_package(PkgConfig REQUIRED)
@@ -97,7 +92,6 @@ else()
     target_link_libraries(stwp_browser PRIVATE PkgConfig::FFMPEG)
 
     if(UNIX)
-        # miniaudio dlopen's the audio backend (ALSA/PulseAudio) at runtime.
         target_link_libraries(stwp_browser PRIVATE ${CMAKE_DL_LIBS} m)
     endif()
 endif()

@@ -10,6 +10,7 @@
 #include <cstring>
 #include <unordered_map>
 #include <cmath>
+#include <chrono>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -48,8 +49,94 @@
 #include "fetcher.hpp"
 #include "renderer.hpp"
 #include "media_player.hpp"
+#include "script.hpp"
 #include <filesystem>
 #include <fstream>
+#include <memory>
+
+static std::unordered_map<int, std::unique_ptr<ScriptEngine>> g_script_engines;
+
+static void run_page_scripts(Tab& tab) {
+    int tid = tab.id;
+    auto& eng = g_script_engines[tid];
+    eng = std::make_unique<ScriptEngine>(
+        [tid](const std::string& s) { std::cerr << "[lua " << tid << "] " << s << "\n"; },
+        [tid](const std::string& s) {
+            if (Tab* t = find_tab_by_id(tid)) { t->alert_text = s; t->show_alert = true; }
+        });
+    eng->set_dom_provider([tid]() -> DomNode* {
+        Tab* t = find_tab_by_id(tid);
+        return t ? &t->page_dom : nullptr;
+    });
+    eng->set_url_provider([tid]() -> std::string {
+        Tab* t = find_tab_by_id(tid);
+        return t ? t->current_url : std::string();
+    });
+    eng->set_nav([tid](const std::string& raw) {
+        Tab* t = find_tab_by_id(tid);
+        if (!t) return;
+        std::string url = resolve_url(t->current_url, raw);
+        if (url.rfind("moon://", 0) != 0) {
+            std::cerr << "[lua " << tid << "] blocked navigation to " << url << "\n";
+            return;
+        }
+        start_async_fetch(tid, url);
+    });
+    eng->bind_inline_handlers();
+    for (const auto& src : tab.active_page.scripts) {
+        std::string err;
+        if (!eng->run(src, "page", err)) {
+            std::cerr << "[lua " << tid << "] error: " << err << "\n";
+        }
+    }
+}
+
+void script_dispatch_click(int tab_id, uint64_t node_id) {
+    auto it = g_script_engines.find(tab_id);
+    if (it != g_script_engines.end() && it->second) it->second->dispatch_click(node_id);
+}
+
+const std::vector<CanvasOp>* script_canvas_ops(int tab_id, uint64_t node_id) {
+    auto it = g_script_engines.find(tab_id);
+    if (it != g_script_engines.end() && it->second) return it->second->canvas_ops_ptr(node_id);
+    return nullptr;
+}
+
+void script_set_canvas_size(int tab_id, uint64_t node_id, float w, float h) {
+    auto it = g_script_engines.find(tab_id);
+    if (it != g_script_engines.end() && it->second) it->second->set_canvas_size(node_id, w, h);
+}
+
+// Frames to keep drawing after the UI was last busy. ImGui resolves interaction
+// over several frames (hover, popups, scroll targets), so going straight to sleep
+// on the first quiet frame would leave the last one unpainted.
+static constexpr int kSettleFrames = 3;
+
+// How long the main loop may block waiting for input, or 0 when something on
+// screen still has to animate and we need the next frame immediately. Called on
+// the render thread, which is the only writer of the state it reads.
+static double idle_wait_seconds() {
+    // Upper bound on wake latency for anything not covered below.
+    constexpr double kHeartbeat = 0.5;
+
+    for (const Tab& tab : tabs) {
+        if (tab.is_fetching) return 0.0; // loading spinner
+        for (const auto& [url, player] : tab.active_players)
+            if (player && player->is_playing()) return 0.0;
+    }
+
+    double timeout = kHeartbeat;
+    auto now = std::chrono::steady_clock::now();
+    for (const auto& [id, eng] : g_script_engines) {
+        if (!eng) continue;
+        auto wake = eng->next_wake();
+        if (!wake) continue;
+        double secs = std::chrono::duration<double>(*wake - now).count();
+        if (secs <= 0.0) return 0.0;
+        timeout = std::min(timeout, secs);
+    }
+    return timeout;
+}
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../thirdparty/stb_image.h"
@@ -229,8 +316,18 @@ int main() {
     active_tab_idx = 0;
     start_async_fetch(tabs[active_tab_idx].id, tabs[active_tab_idx].current_url);
 
+    // ImGui rebuilds its draw data from scratch every frame, so a vsync-paced loop
+    // redraws the whole window at 60fps even when the page is static. Idle frames
+    // block on input instead; anything that animates asks for frames explicitly.
+    int settle_frames = kSettleFrames;
+
     while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
+        double wait = (settle_frames > 0) ? 0.0 : idle_wait_seconds();
+        if (wait > 0.0) {
+            glfwWaitEventsTimeout(wait);
+        } else {
+            glfwPollEvents();
+        }
 
         {
             std::lock_guard<std::mutex> lock(fetch_mutex);
@@ -240,6 +337,8 @@ int main() {
                     tab.is_fetching = false;
                     tab.new_page_ready = false;
                     tab.reset_scroll_next_frame = true;
+                    tab.canvas_slack = 0.0f;
+                    tab.canvas_last_vp_h = 0.0f;
                     
                     for (const auto& [url, tex] : tab.page_textures) {
                         if (tex.id != 0) {
@@ -290,12 +389,14 @@ int main() {
                             }
                         }
                         
-                        tab.alert_text = extract_alert_message(tab.active_page.body);
+                        run_page_scripts(tab);
                     } else {
                         tab.status_text = "Error: " + tab.active_page.error_message;
                         std::string error_html = "<h1>Error loading page</h1><p>" + tab.active_page.error_message + "</p>";
                         std::string temp_css = "";
-                        tab.page_dom = parse_html_to_dom(error_html, temp_css);
+                        std::vector<std::string> temp_scripts;
+                        tab.page_dom = parse_html_to_dom(error_html, temp_css, temp_scripts);
+                        g_script_engines.erase(tab.id);
                         tab.css_classes.clear();
                         tab.title = "Error Loading";
                         tab.alert_text = "";
@@ -307,6 +408,9 @@ int main() {
                 }
             }
         }
+
+        for (auto& [id, eng] : g_script_engines)
+            if (eng) { eng->poll_timers(); eng->run_raf(); }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -659,7 +763,8 @@ int main() {
                 delete player;
             }
             tabs[tab_to_close].active_players.clear();
-            
+            g_script_engines.erase(tabs[tab_to_close].id);
+
             tabs.erase(tabs.begin() + tab_to_close);
             if (tabs.empty()) {
                 Tab new_tab;
@@ -879,6 +984,18 @@ int main() {
         bool default_inline_flow = false;
         render_node(active_tab.page_dom, default_style, default_inline_flow, active_tab);
 
+        float vp_h = ImGui::GetWindowHeight();
+        if (vp_h != active_tab.canvas_last_vp_h) {
+            active_tab.canvas_slack = 0.0f;
+            active_tab.canvas_last_vp_h = vp_h;
+        } else if (active_tab.canvas_auto_used) {
+            float grow = ImGui::GetScrollMaxY();
+            active_tab.canvas_slack += grow;
+            // Slack converges over successive frames; keep drawing until it does.
+            if (grow > 0.0f) settle_frames = kSettleFrames;
+        }
+        active_tab.canvas_auto_used = false;
+
         ImGui::EndChild();
         ImGui::PopStyleColor(2);
 
@@ -897,6 +1014,15 @@ int main() {
         }
 
         ImGui::End();
+
+        // An auto-resizing modal needs a couple of frames to lay itself out, and it
+        // can be opened by a script rather than by input, so it asks for frames too.
+        bool ui_busy = io.WantTextInput || ImGui::IsAnyItemActive() || ImGui::IsAnyMouseDown() ||
+                       io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f ||
+                       io.MouseWheel != 0.0f || io.MouseWheelH != 0.0f ||
+                       active_tab.show_alert;
+        if (ui_busy) settle_frames = kSettleFrames;
+        else if (settle_frames > 0) settle_frames--;
 
         ImGui::Render();
         glViewport(0, 0, display_w, display_h);

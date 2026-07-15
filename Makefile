@@ -10,17 +10,21 @@
 UNAME_S := $(shell uname -s)
 
 CXX = clang++
+CC = cc
 CXXFLAGS = -std=c++20 -Wall -Wextra -O3 -pthread
 
 IMGUI_DIR = src/thirdparty/imgui
 IMGUI_INC = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 
-# Yoga flexbox layout engine (vendored, C++ sources compiled into the browser).
+LUA_DIR = src/thirdparty/lua
+LUA_INC = -I$(LUA_DIR)
+LUA_SRCS = $(wildcard $(LUA_DIR)/*.c)
+LUA_OBJS = $(patsubst $(LUA_DIR)/%.c,$(OBJ_DIR)/lua/%.o,$(LUA_SRCS))
+
 YOGA_DIR = src/thirdparty/yoga
 YOGA_INC = -I$(YOGA_DIR) -include src/thirdparty/yoga_compat.hpp
 YOGA_SRCS = $(shell find $(YOGA_DIR)/yoga -name '*.cpp')
 
-# Detect GLFW using pkg-config
 GLFW_CFLAGS = $(shell pkg-config --cflags glfw3 2>/dev/null || echo "")
 GLFW_LIBS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw")
 
@@ -35,15 +39,12 @@ IMGUI_OBJS = $(OBJ_DIR)/imgui.o \
 
 YOGA_OBJS = $(patsubst $(YOGA_DIR)/%.cpp,$(OBJ_DIR)/yoga/%.o,$(YOGA_SRCS))
 
-# ---- Platform-specific media backend and link flags ------------------------
 ifeq ($(UNAME_S),Darwin)
-    # macOS: AVFoundation-backed player, Apple frameworks, OpenGL framework.
     MEDIA_SRCS = src/browser/media_player_mac.mm
     MEDIA_FLAGS = -fobjc-arc
     MEDIA_LIBS = -framework AVFoundation -framework CoreMedia -framework AudioToolbox -framework QuartzCore
     GL_LIBS = -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
 else
-    # Linux: FFmpeg + miniaudio player.
     CXX = g++
     MEDIA_SRCS = src/browser/media_player_ffmpeg.cpp
     MEDIA_FLAGS =
@@ -56,7 +57,6 @@ TARGETS = stwp_server stwp_client stwp_browser
 
 all: $(TARGETS)
 
-# Rules to compile ImGui source files to object files
 $(OBJ_DIR)/%.o: $(IMGUI_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(GLFW_CFLAGS) $(IMGUI_INC) -c $< -o $@
@@ -69,15 +69,19 @@ $(OBJ_DIR)/yoga/%.o: $(YOGA_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(YOGA_INC) -c $< -o $@
 
+$(OBJ_DIR)/lua/%.o: $(LUA_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) -O2 -Wall -c $< -o $@
+
 stwp_server: src/server/server.cpp src/common/stwp_msg.hpp src/common/net.hpp
 	$(CXX) $(CXXFLAGS) src/server/server.cpp -o stwp_server
 
 stwp_client: src/client/client.cpp src/common/url_parser.hpp src/common/stwp_msg.hpp src/common/net.hpp
 	$(CXX) $(CXXFLAGS) src/client/client.cpp -o stwp_client
 
-stwp_browser: src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) src/common/url_parser.hpp src/common/stwp_msg.hpp src/common/net.hpp
-	$(CXX) $(CXXFLAGS) $(MEDIA_FLAGS) $(MEDIA_CFLAGS) $(GLFW_CFLAGS) $(IMGUI_INC) $(YOGA_INC) \
-		src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) \
+stwp_browser: src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp src/browser/script.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) $(LUA_OBJS) src/common/url_parser.hpp src/common/stwp_msg.hpp src/common/net.hpp
+	$(CXX) $(CXXFLAGS) $(MEDIA_FLAGS) $(MEDIA_CFLAGS) $(GLFW_CFLAGS) $(IMGUI_INC) $(YOGA_INC) $(LUA_INC) \
+		src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp src/browser/script.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) $(LUA_OBJS) \
 		$(GLFW_LIBS) $(GL_LIBS) $(MEDIA_LIBS) -o stwp_browser
 
 clean:

@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <cstdint>
 #include "imgui.h"
 #include "../common/net.hpp"
 
@@ -49,7 +50,19 @@ struct CssStyle {
     float flex_basis = -1.0f;
 };
 
+struct CanvasOp {
+    enum Kind { FillRect, StrokeRect, Line, Circle, Text, PolyFill };
+    Kind kind;
+    float a = 0, b = 0, c = 0, d = 0;
+    ImVec4 color = ImVec4(1, 1, 1, 1);
+    float line_width = 1.0f;
+    bool fill = false;
+    std::string text;
+    std::vector<ImVec2> pts;
+};
+
 struct DomNode {
+    uint64_t node_id = 0;
     std::string tag;
     std::string class_name;
     std::string id;
@@ -92,6 +105,7 @@ struct FetchResult {
     std::unordered_map<std::string, CssStyle> css_classes;
     std::unordered_map<std::string, std::string> fetched_images;
     std::unordered_map<std::string, std::string> fetched_media;
+    std::vector<std::string> scripts;
 };
 
 struct TextureInfo {
@@ -125,4 +139,8 @@ struct Tab {
     std::unordered_map<std::string, uintptr_t> radio_selection;
     std::unordered_map<std::string, TextureInfo> page_textures;
     std::unordered_map<std::string, class VideoPlayer*> active_players;
+
+    float canvas_slack = 0.0f;
+    bool  canvas_auto_used = false;
+    float canvas_last_vp_h = 0.0f;
 };

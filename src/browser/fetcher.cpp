@@ -388,7 +388,7 @@ void start_async_fetch(int tab_id, const std::string& url_str, bool is_history_n
                 res.fetched_media[final_url] = res.body;
             } else if (is_html) {
                 std::string css_content = "";
-                res.dom = parse_html_to_dom(res.body, css_content);
+                res.dom = parse_html_to_dom(res.body, css_content, res.scripts);
                 
                 std::vector<std::string> stylesheet_hrefs;
                 find_stylesheets_in_dom(res.dom, stylesheet_hrefs);

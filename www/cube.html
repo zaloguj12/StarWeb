@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Spinning Cube</title>
+</head>
+
+<body style="margin:0; padding:0">
+    <canvas id="scene"></canvas>
+
+    <script>
+        local cv = document.getElementById("scene")
+        local ctx = cv:getContext("2d")
+
+        local verts = {
+            {-1,-1,-1}, {1,-1,-1}, {1,1,-1}, {-1,1,-1},
+            {-1,-1, 1}, {1,-1, 1}, {1,1, 1}, {-1,1, 1},
+        }
+        local edges = {
+            {1,2},{2,3},{3,4},{4,1},
+            {5,6},{6,7},{7,8},{8,5},
+            {1,5},{2,6},{3,7},{4,8},
+        }
+
+        local function draw(t)
+            local W, H = cv.width, cv.height
+            if W < 1 or H < 1 then requestAnimationFrame(draw); return end
+
+            local a = t * 0.001
+            ctx:clearRect(0, 0, W, H)
+            ctx.strokeStyle = "#7c5cff"
+            ctx.lineWidth = 2
+
+            local scale = math.min(W, H) * 0.28
+            local ca, sa = math.cos(a), math.sin(a)
+            local cb, sb = math.cos(a * 0.6), math.sin(a * 0.6)
+            local proj = {}
+            for i = 1, #verts do
+                local x, y, z = verts[i][1], verts[i][2], verts[i][3]
+                local x1 = x * ca - z * sa
+                local z1 = x * sa + z * ca
+                local y2 = y * cb - z1 * sb
+                local z2 = y * sb + z1 * cb
+                local f = scale * 2.4 / (4 - z2)
+                proj[i] = { W / 2 + x1 * f, H / 2 + y2 * f }
+            end
+
+            ctx:beginPath()
+            for i = 1, #edges do
+                local p1 = proj[edges[i][1]]
+                local p2 = proj[edges[i][2]]
+                ctx:moveTo(p1[1], p1[2])
+                ctx:lineTo(p2[1], p2[2])
+            end
+            ctx:stroke()
+
+            requestAnimationFrame(draw)
+        end
+
+        requestAnimationFrame(draw)
+    </script>
+</body>
+
+</html>

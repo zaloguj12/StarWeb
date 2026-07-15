@@ -1104,13 +1104,7 @@ void render_node(DomNode& node, const CssStyle& parent_style, bool& is_inline_fl
         
         std::string btn_id = cleaned_text + "##" + (node.id.empty() ? std::to_string((uintptr_t)&node) : node.id);
         if (ImGui::Button(btn_id.c_str(), ImVec2(btn_width, btn_height))) {
-            if (!node.onclick.empty()) {
-                tab.alert_text = extract_alert_message(node.onclick);
-                tab.show_alert = true;
-            } else {
-                tab.alert_text = "Button clicked.";
-                tab.show_alert = true;
-            }
+            script_dispatch_click(tab.id, node.node_id);
         }
         
         ImGui::PopStyleColor();
@@ -1174,6 +1168,63 @@ void render_node(DomNode& node, const CssStyle& parent_style, bool& is_inline_fl
             }
         }
         ImGui::PopStyleColor();
+    } else if (node.tag == "canvas") {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        float w = merged.width  > 0.0f ? merged.width  : avail.x;
+        float h = merged.height > 0.0f ? merged.height : avail.y;
+        if (w < 1.0f) w = 300.0f;
+        if (h < 1.0f) h = 150.0f;
+
+        float reserve_h = h;
+        if (merged.height <= 0.0f) {
+            reserve_h = avail.y - tab.canvas_slack;
+            if (reserve_h < 1.0f) reserve_h = 1.0f;
+            tab.canvas_auto_used = true;
+        }
+
+        script_set_canvas_size(tab.id, node.node_id, w, h);
+        ImVec2 o = ImGui::GetCursorScreenPos();
+        ImGui::Dummy(ImVec2(w, reserve_h));
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImVec2 br(o.x + w, o.y + h);
+        dl->PushClipRect(o, br, true);
+
+        const std::vector<CanvasOp>* ops = script_canvas_ops(tab.id, node.node_id);
+        if (ops) {
+            for (const CanvasOp& op : *ops) {
+                ImU32 col = ImGui::GetColorU32(op.color);
+                switch (op.kind) {
+                    case CanvasOp::FillRect:
+                        dl->AddRectFilled(ImVec2(o.x + op.a, o.y + op.b),
+                                          ImVec2(o.x + op.a + op.c, o.y + op.b + op.d), col);
+                        break;
+                    case CanvasOp::StrokeRect:
+                        dl->AddRect(ImVec2(o.x + op.a, o.y + op.b),
+                                    ImVec2(o.x + op.a + op.c, o.y + op.b + op.d),
+                                    col, 0.0f, 0, op.line_width);
+                        break;
+                    case CanvasOp::Line:
+                        dl->AddLine(ImVec2(o.x + op.a, o.y + op.b),
+                                    ImVec2(o.x + op.c, o.y + op.d), col, op.line_width);
+                        break;
+                    case CanvasOp::Circle:
+                        dl->AddCircle(ImVec2(o.x + op.a, o.y + op.b), op.c, col, 0, op.line_width);
+                        break;
+                    case CanvasOp::Text:
+                        dl->AddText(ImVec2(o.x + op.a, o.y + op.b), col, op.text.c_str());
+                        break;
+                    case CanvasOp::PolyFill: {
+                        std::vector<ImVec2> pts;
+                        pts.reserve(op.pts.size());
+                        for (const ImVec2& p : op.pts) pts.push_back(ImVec2(o.x + p.x, o.y + p.y));
+                        dl->AddConvexPolyFilled(pts.data(), (int)pts.size(), col);
+                        break;
+                    }
+                }
+            }
+        }
+        dl->PopClipRect();
     } else if (node.tag == "hr") {
         ImGui::Separator();
         ImGui::Spacing();
@@ -1228,9 +1279,8 @@ void render_node(DomNode& node, const CssStyle& parent_style, bool& is_inline_fl
                     tab.alert_text = data.empty() ? "Form submitted (no named fields)."
                                                   : "Form submitted:\n" + data;
                     tab.show_alert = true;
-                } else if (!node.onclick.empty()) {
-                    tab.alert_text = extract_alert_message(node.onclick);
-                    tab.show_alert = true;
+                } else {
+                    script_dispatch_click(tab.id, node.node_id);
                 }
             }
         } else if (type == "file") {

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>StarWeb Lua Demo</title>
+</head>
+
+<body>
+    <h1 style="color:#a97bff">Lua Scripting</h1>
+    <p style="color:#cccccc">This page runs Lua in a sandboxed engine, like JS in Chrome.</p>
+
+    <h2 id="headline" class="big">Original headline</h2>
+    <p class="note">note one</p>
+    <p class="note">note two</p>
+
+    <button id="go">Change the headline</button>
+    <button onclick="alert('inline onclick, running as Lua')">Inline alert</button>
+
+    <script>
+        print("hello from Lua 5.4")
+
+        local h = document.getElementById("headline")
+        console.log("headline:", h.tagName, h.className, h.textContent)
+
+        local notes = document.getElementsByClassName("note")
+        console.log("note count:", #notes)
+        for i = 1, #notes do
+            console.log("note", i, "=", notes[i].textContent)
+        end
+
+        local clicks = 0
+        document.getElementById("go"):addEventListener("click", function()
+            clicks = clicks + 1
+            h.textContent = "Changed " .. clicks .. " time(s)"
+            h.style.color = "#4ade80"
+        end)
+
+        console.log("location:", location.href)
+
+        local secs = 0
+        setInterval(function()
+            secs = secs + 1
+            console.log("tick", secs)
+        end, 1000)
+    </script>
+
+    <p style="color:#888888">Click a button; check the terminal for console output.</p>
+</body>
+
+</html>

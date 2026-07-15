@@ -310,9 +310,26 @@ void parse_css(const std::string& css_content, std::unordered_map<std::string, C
     }
 }
 
-DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
+static size_t find_ci(const std::string& h, const std::string& needle, size_t from) {
+    size_t n = needle.size();
+    if (n == 0 || h.size() < n) return std::string::npos;
+    for (size_t p = from; p + n <= h.size(); ++p) {
+        size_t k = 0;
+        for (; k < n; ++k) {
+            if (std::tolower((unsigned char)h[p + k]) != (unsigned char)needle[k]) break;
+        }
+        if (k == n) return p;
+    }
+    return std::string::npos;
+}
+
+DomNode parse_html_to_dom(const std::string& html, std::string& css_content,
+                          std::vector<std::string>& scripts) {
     DomNode root;
     root.tag = "root";
+
+    uint64_t next_id = 1;
+    root.node_id = next_id++;
 
     std::vector<DomNode*> node_stack;
     node_stack.push_back(&root);
@@ -327,6 +344,7 @@ DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
         node_stack.back()->text_content += decoded;
         if (!trim_spaces(decoded).empty()) {
             DomNode text_node;
+            text_node.node_id = next_id++;
             text_node.tag = "#text";
             text_node.text_content = decoded;
             node_stack.back()->children.push_back(std::move(text_node));
@@ -382,7 +400,22 @@ DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
             std::transform(tag_name.begin(), tag_name.end(), tag_name.begin(),
                            [](unsigned char c) { return std::tolower(c); });
 
+            if (tag_name == "script") {
+                if (!self_closing) {
+                    size_t close = find_ci(html, "</script>", i);
+                    std::string raw = (close == std::string::npos)
+                        ? html.substr(i) : html.substr(i, close - i);
+                    i = (close == std::string::npos) ? len : close + 9;
+                    bool has_src = tag_inner.find("src") != std::string::npos;
+                    if (!has_src && !trim_spaces(raw).empty()) {
+                        scripts.push_back(std::move(raw));
+                    }
+                }
+                continue;
+            }
+
             DomNode child;
+            child.node_id = next_id++;
             child.tag = tag_name;
 
             size_t attr_pos = tag_name_end;
@@ -482,29 +515,6 @@ DomNode parse_html_to_dom(const std::string& html, std::string& css_content) {
     flush_text();
 
     return root;
-}
-
-std::string extract_alert_message(const std::string& html) {
-    std::string script_content = html;
-    size_t script_start = html.find("<script>");
-    if (script_start != std::string::npos) {
-        size_t script_end = html.find("</script>", script_start);
-        if (script_end != std::string::npos) {
-            script_content = html.substr(script_start + 8, script_end - script_start - 8);
-        }
-    }
-    
-    size_t alert_pos = script_content.find("alert(");
-    if (alert_pos != std::string::npos) {
-        size_t val_start = script_content.find_first_of("\"'", alert_pos);
-        if (val_start != std::string::npos) {
-            size_t val_end = script_content.find_first_of("\"'", val_start + 1);
-            if (val_end != std::string::npos) {
-                return script_content.substr(val_start + 1, val_end - val_start - 1);
-            }
-        }
-    }
-    return "Action performed.";
 }
 
 void apply_style(CssStyle& dest, const CssStyle& src) {
