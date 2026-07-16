@@ -13,19 +13,28 @@ automatically by the build system:
 | Windows  | FFmpeg decode + miniaudio output | `src/browser/media_player_ffmpeg.cpp` |
 
 `miniaudio` is vendored (`src/thirdparty/miniaudio.h`); FFmpeg is a system
-dependency on Linux/Windows only. See `THIRD_PARTY_LICENSES.md` for the
-license terms of FFmpeg and every other dependency.
+dependency on Linux/Windows only. **OpenSSL 3** is a system dependency on every
+platform — it provides the TLS 1.3 transport for the `star://` scheme. See
+`THIRD_PARTY_LICENSES.md` for the license terms of FFmpeg, OpenSSL, and every
+other dependency.
+
+To serve `star://` you also need a certificate. Run `tools/make_certs.sh` once
+to generate a local StarWeb root CA and a `localhost` server cert under `certs/`.
 
 ---
 
 ## macOS
 
-**Prerequisites**: Xcode command-line tools (a compiler) and GLFW.
+**Prerequisites**: Xcode command-line tools (a compiler), GLFW, and OpenSSL 3.
 
 ```sh
-brew install glfw
+brew install glfw openssl@3
 make            # or: cmake -S . -B build && cmake --build build
 ```
+
+`openssl@3` is keg-only on Homebrew; the Makefile and CMake both locate it
+automatically at `/usr/local/opt/openssl@3` (Intel) or `/opt/homebrew/opt/openssl@3`
+(Apple Silicon), so no `PKG_CONFIG_PATH` export is needed.
 
 Binaries land in the project root (`stwp_server`, `stwp_client`, `stwp_browser`).
 
@@ -33,11 +42,12 @@ Binaries land in the project root (`stwp_server`, `stwp_client`, `stwp_browser`)
 
 ## Linux
 
-**Prerequisites**: a compiler, GLFW, OpenGL, and the FFmpeg development libraries.
+**Prerequisites**: a compiler, GLFW, OpenGL, OpenSSL 3, and the FFmpeg
+development libraries.
 
 ```sh
 # Debian / Ubuntu
-sudo apt install build-essential pkg-config libglfw3-dev libgl1-mesa-dev \
+sudo apt install build-essential pkg-config libglfw3-dev libgl1-mesa-dev libssl-dev \
     libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
 
 make            # or: cmake -S . -B build && cmake --build build
@@ -56,10 +66,10 @@ extra build-time audio dependency is required.
 - **MSVC**: [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
   (or full Visual Studio) with the "Desktop development with C++" workload. Without
   this, `cmake` has no compiler to find.
-- **GLFW and FFmpeg** via [vcpkg](https://vcpkg.io) (the easiest way to get them on Windows).
+- **GLFW, FFmpeg, and OpenSSL** via [vcpkg](https://vcpkg.io) (the easiest way to get them on Windows).
 
 ```powershell
-vcpkg install glfw3:x64-windows ffmpeg:x64-windows
+vcpkg install glfw3:x64-windows ffmpeg:x64-windows openssl:x64-windows
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
     -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build --config Release
@@ -90,7 +100,7 @@ without dual-booting or a VM.
 ```powershell
 wsl --install -d Ubuntu
 wsl -d Ubuntu -u root -- bash -c "apt-get update && apt-get install -y \
-    build-essential pkg-config libglfw3-dev libgl1-mesa-dev \
+    build-essential pkg-config libglfw3-dev libgl1-mesa-dev libssl-dev \
     libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev \
     cmake libpulse0 pulseaudio-utils alsa-utils"
 ```

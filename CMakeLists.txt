@@ -47,6 +47,17 @@ target_include_directories(lua PUBLIC ${LUA_DIR})
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 
+# brew keeps openssl@3 keg-only; give CMake a hint if the default search misses.
+if(APPLE AND NOT OPENSSL_ROOT_DIR)
+    foreach(prefix /opt/homebrew/opt/openssl@3 /usr/local/opt/openssl@3)
+        if(EXISTS ${prefix})
+            set(OPENSSL_ROOT_DIR ${prefix})
+            break()
+        endif()
+    endforeach()
+endif()
+find_package(OpenSSL 3 REQUIRED)
+
 find_package(glfw3 QUIET)
 if(glfw3_FOUND)
     set(GLFW_TARGET glfw)
@@ -66,11 +77,11 @@ if(WIN32)
     set(NET_LIBS ws2_32)
 endif()
 
-add_executable(stwp_server ${SRC}/server/server.cpp)
-target_link_libraries(stwp_server PRIVATE Threads::Threads ${NET_LIBS})
+add_executable(stwp_server ${SRC}/server/server.cpp ${SRC}/common/tls.cpp)
+target_link_libraries(stwp_server PRIVATE Threads::Threads OpenSSL::SSL OpenSSL::Crypto ${NET_LIBS})
 
-add_executable(stwp_client ${SRC}/client/client.cpp)
-target_link_libraries(stwp_client PRIVATE Threads::Threads ${NET_LIBS})
+add_executable(stwp_client ${SRC}/client/client.cpp ${SRC}/common/tls.cpp)
+target_link_libraries(stwp_client PRIVATE Threads::Threads OpenSSL::SSL OpenSSL::Crypto ${NET_LIBS})
 
 set(BROWSER_SRCS
     ${SRC}/browser/browser.cpp
@@ -80,10 +91,11 @@ set(BROWSER_SRCS
     ${SRC}/browser/renderer.cpp
     ${SRC}/browser/layout.cpp
     ${SRC}/browser/script.cpp
+    ${SRC}/common/tls.cpp
 )
 
 add_executable(stwp_browser ${BROWSER_SRCS})
-target_link_libraries(stwp_browser PRIVATE imgui yoga lua Threads::Threads ${NET_LIBS})
+target_link_libraries(stwp_browser PRIVATE imgui yoga lua Threads::Threads OpenSSL::SSL OpenSSL::Crypto ${NET_LIBS})
 
 if(APPLE)
     target_sources(stwp_browser PRIVATE ${SRC}/browser/media_player_mac.mm)

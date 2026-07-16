@@ -4,7 +4,9 @@
 #include "../common/url_parser.hpp"
 #include "../common/stwp_msg.hpp"
 #include "../common/net.hpp"
+#include "../common/conn.hpp"
 #include <thread>
+#include <memory>
 #include <cstring>
 #include <algorithm>
 #include <cctype>
@@ -189,6 +191,8 @@ FetchResult perform_fetch(int tab_id, const std::string& url_str, bool is_main_r
         return result;
     }
 
+    std::unique_ptr<Conn> conn = std::make_unique<PlainConn>(socket_fd);
+
     StwpRequest req;
     req.method = "GET";
     req.path = parsed.path;
@@ -197,7 +201,7 @@ FetchResult perform_fetch(int tab_id, const std::string& url_str, bool is_main_r
     req.headers["Connection"] = "close";
 
     std::string serialized_req = req.serialize();
-    if (send(socket_fd, serialized_req.data(), serialized_req.size(), 0) < 0) {
+    if (!write_all(*conn, serialized_req.data(), serialized_req.size())) {
         result.error_message = "Failed to send request.";
         {
             std::lock_guard<std::mutex> lock(fetch_mutex);
@@ -206,14 +210,13 @@ FetchResult perform_fetch(int tab_id, const std::string& url_str, bool is_main_r
                 tab->active_socket_fd = net::kInvalidSocket;
             }
         }
-        net::close(socket_fd);
         return result;
     }
 
     std::string raw_response;
     char recv_buf[4096];
     while (true) {
-        net::ssize_t_ bytes_received = recv(socket_fd, recv_buf, sizeof(recv_buf), 0);
+        net::ssize_t_ bytes_received = conn->read(recv_buf, sizeof(recv_buf));
         if (bytes_received < 0) {
             result.error_message = "Socket read failure.";
             break;
@@ -231,7 +234,7 @@ FetchResult perform_fetch(int tab_id, const std::string& url_str, bool is_main_r
             tab->active_socket_fd = net::kInvalidSocket;
         }
     }
-    net::close(socket_fd);
+    conn.reset();
 
     if (result.error_message == "Socket read failure.") {
         return result;

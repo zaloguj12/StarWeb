@@ -21,6 +21,14 @@ or linked as a system/vcpkg dependency.
   `share/ffmpeg/copyright` (LGPL-2.1 full text), serves as the required license
   notice for redistributed binaries.
 
+## OpenSSL
+
+- **License**: Apache License 2.0.
+- **How it's used**: system/vcpkg dependency (not vendored), linked into all three
+  binaries for the TLS 1.3 transport under the `star://` scheme.
+- **Unmodified**: StarWeb uses stock upstream OpenSSL 3; no patches are applied.
+- **Source**: https://www.openssl.org
+
 ## GLFW
 
 - **License**: zlib/libpng license.

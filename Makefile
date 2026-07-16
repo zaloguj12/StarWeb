@@ -28,6 +28,12 @@ YOGA_SRCS = $(shell find $(YOGA_DIR)/yoga -name '*.cpp')
 GLFW_CFLAGS = $(shell pkg-config --cflags glfw3 2>/dev/null || echo "")
 GLFW_LIBS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw")
 
+# brew keeps openssl@3 keg-only, so nudge pkg-config toward it if the bare
+# lookup misses. Falls back to plain -lssl -lcrypto if pkg-config has nothing.
+export PKG_CONFIG_PATH := /usr/local/opt/openssl@3/lib/pkgconfig:/opt/homebrew/opt/openssl@3/lib/pkgconfig:$(PKG_CONFIG_PATH)
+SSL_CFLAGS = $(shell pkg-config --cflags openssl 2>/dev/null || echo "")
+SSL_LIBS = $(shell pkg-config --libs openssl 2>/dev/null || echo "-lssl -lcrypto")
+
 OBJ_DIR = obj
 
 IMGUI_OBJS = $(OBJ_DIR)/imgui.o \
@@ -73,16 +79,16 @@ $(OBJ_DIR)/lua/%.o: $(LUA_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) -O2 -Wall -c $< -o $@
 
-stwp_server: src/server/server.cpp src/common/stwp_msg.hpp src/common/net.hpp
-	$(CXX) $(CXXFLAGS) src/server/server.cpp -o stwp_server
+stwp_server: src/server/server.cpp src/common/tls.cpp src/common/tls.hpp src/common/conn.hpp src/common/stwp_msg.hpp src/common/net.hpp
+	$(CXX) $(CXXFLAGS) $(SSL_CFLAGS) src/server/server.cpp src/common/tls.cpp $(SSL_LIBS) -o stwp_server
 
-stwp_client: src/client/client.cpp src/common/url_parser.hpp src/common/stwp_msg.hpp src/common/net.hpp
-	$(CXX) $(CXXFLAGS) src/client/client.cpp -o stwp_client
+stwp_client: src/client/client.cpp src/common/tls.cpp src/common/tls.hpp src/common/conn.hpp src/common/url_parser.hpp src/common/stwp_msg.hpp src/common/net.hpp
+	$(CXX) $(CXXFLAGS) $(SSL_CFLAGS) src/client/client.cpp src/common/tls.cpp $(SSL_LIBS) -o stwp_client
 
-stwp_browser: src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp src/browser/script.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) $(LUA_OBJS) src/common/url_parser.hpp src/common/stwp_msg.hpp src/common/net.hpp
-	$(CXX) $(CXXFLAGS) $(MEDIA_FLAGS) $(MEDIA_CFLAGS) $(GLFW_CFLAGS) $(IMGUI_INC) $(YOGA_INC) $(LUA_INC) \
-		src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp src/browser/script.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) $(LUA_OBJS) \
-		$(GLFW_LIBS) $(GL_LIBS) $(MEDIA_LIBS) -o stwp_browser
+stwp_browser: src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp src/browser/script.cpp src/common/tls.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) $(LUA_OBJS) src/common/tls.hpp src/common/conn.hpp src/common/url_parser.hpp src/common/stwp_msg.hpp src/common/net.hpp
+	$(CXX) $(CXXFLAGS) $(MEDIA_FLAGS) $(MEDIA_CFLAGS) $(GLFW_CFLAGS) $(SSL_CFLAGS) $(IMGUI_INC) $(YOGA_INC) $(LUA_INC) \
+		src/browser/browser.cpp src/browser/globals.cpp src/browser/parser.cpp src/browser/fetcher.cpp src/browser/renderer.cpp src/browser/layout.cpp src/browser/script.cpp src/common/tls.cpp $(MEDIA_SRCS) $(IMGUI_OBJS) $(YOGA_OBJS) $(LUA_OBJS) \
+		$(GLFW_LIBS) $(GL_LIBS) $(MEDIA_LIBS) $(SSL_LIBS) -o stwp_browser
 
 clean:
 	rm -f stwp_server stwp_client stwp_browser

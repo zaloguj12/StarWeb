@@ -6,7 +6,10 @@
 #include <sstream>
 #include <filesystem>
 #include <cstring>
+#include <memory>
 #include "../common/net.hpp"
+#include "../common/conn.hpp"
+#include "../common/tls.hpp"
 #include "../common/stwp_msg.hpp"
 
 std::string sanitize_path(std::string path) {
@@ -48,7 +51,7 @@ std::string get_content_type(const std::string& path) {
     return "application/octet-stream";
 }
 
-void handle_client(net::socket_t client_fd) {
+void handle_client(std::unique_ptr<Conn> conn) {
     std::string buffer;
     char temp_buf[4096];
     StwpRequest req;
@@ -56,10 +59,10 @@ void handle_client(net::socket_t client_fd) {
     bool request_parsed = false;
 
     // Set socket receive timeout (5 seconds)
-    net::set_recv_timeout(client_fd, 5);
+    net::set_recv_timeout(conn->fd(), 5);
 
     while (true) {
-        net::ssize_t_ bytes_received = recv(client_fd, temp_buf, sizeof(temp_buf), 0);
+        net::ssize_t_ bytes_received = conn->read(temp_buf, sizeof(temp_buf));
         if (bytes_received <= 0) {
             break; // Connection closed or timeout
         }
@@ -79,8 +82,7 @@ void handle_client(net::socket_t client_fd) {
         res.headers["Content-Type"] = "text/plain";
         res.headers["Connection"] = "close";
         std::string res_str = res.serialize();
-        send(client_fd, res_str.data(), res_str.size(), 0);
-        net::close(client_fd);
+        write_all(*conn, res_str.data(), res_str.size());
         return;
     }
 
@@ -126,67 +128,119 @@ void handle_client(net::socket_t client_fd) {
     }
 
     std::string res_str = res.serialize();
-    send(client_fd, res_str.data(), res_str.size(), 0);
-    net::close(client_fd);
+    write_all(*conn, res_str.data(), res_str.size());
 }
 
-int main(int argc, char* argv[]) {
-    net::Startup net_startup;
-
-    int port = 8090;
-    if (argc > 1) {
-        try {
-            port = std::stoi(argv[1]);
-        } catch (...) {
-            std::cerr << "Invalid port argument. Using default 8090." << std::endl;
-        }
-    }
-
-    net::socket_t server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (!net::is_valid(server_fd)) {
-        std::cerr << "Failed to create socket." << std::endl;
-        return 1;
-    }
-
-    if (net::enable_reuseaddr(server_fd) < 0) {
-        std::cerr << "setsockopt (SO_REUSEADDR) failed." << std::endl;
-        net::close(server_fd);
-        return 1;
-    }
+net::socket_t make_listener(int port) {
+    net::socket_t fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (!net::is_valid(fd)) return net::kInvalidSocket;
+    net::enable_reuseaddr(fd);
 
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        std::cerr << "Bind failed on port " << port << "." << std::endl;
-        net::close(server_fd);
-        return 1;
+    if (bind(fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        net::close(fd);
+        return net::kInvalidSocket;
     }
-
-    if (listen(server_fd, 10) < 0) {
-        std::cerr << "Listen failed." << std::endl;
-        net::close(server_fd);
-        return 1;
+    if (listen(fd, 10) < 0) {
+        net::close(fd);
+        return net::kInvalidSocket;
     }
+    return fd;
+}
 
-    std::cout << "[Server] StarWeb STWP Server listening on port " << port << std::endl;
+// One connection: on the TLS listener, do the handshake here (in the worker
+// thread, so a slow client can't stall the accept loop) before serving.
+void serve_conn(net::socket_t fd, TlsContext* tls) {
+    std::unique_ptr<Conn> conn;
+    if (tls) {
+        net::set_recv_timeout(fd, 5);
+        std::string err;
+        auto tconn = TlsConn::accept(*tls, fd, err);
+        if (!tconn) {
+            std::cerr << "[Server] TLS handshake failed: " << err << std::endl;
+            net::close(fd);
+            return;
+        }
+        conn = std::move(tconn);
+    } else {
+        conn = std::make_unique<PlainConn>(fd);
+    }
+    handle_client(std::move(conn));
+}
 
+void accept_loop(net::socket_t listener, TlsContext* tls) {
     while (true) {
         sockaddr_in client_address{};
         socklen_t addr_len = sizeof(client_address);
-        net::socket_t client_fd = accept(server_fd, (struct sockaddr*)&client_address, &addr_len);
+        net::socket_t client_fd = accept(listener, (struct sockaddr*)&client_address, &addr_len);
         if (!net::is_valid(client_fd)) {
-            // Check for accept errors, but keep server running
             std::cerr << "Accept connection failed." << std::endl;
             continue;
         }
+        std::thread(serve_conn, client_fd, tls).detach();
+    }
+}
 
-        std::thread t(handle_client, client_fd);
-        t.detach();
+int main(int argc, char* argv[]) {
+    net::Startup net_startup;
+
+    int port = 8090;
+    int tls_port = 8490;
+    std::string cert_path = "certs/localhost.pem";
+    std::string key_path = "certs/localhost.key";
+    bool tls_enabled = true;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a == "--tls-port" && i + 1 < argc) {
+            try { tls_port = std::stoi(argv[++i]); } catch (...) {}
+        } else if (a == "--cert" && i + 1 < argc) {
+            cert_path = argv[++i];
+        } else if (a == "--key" && i + 1 < argc) {
+            key_path = argv[++i];
+        } else if (a == "--no-tls") {
+            tls_enabled = false;
+        } else {
+            try { port = std::stoi(a); }
+            catch (...) { std::cerr << "Ignoring argument: " << a << std::endl; }
+        }
     }
 
-    net::close(server_fd);
+    std::unique_ptr<TlsContext> tls_ctx;
+    if (tls_enabled) {
+        std::string err;
+        tls_ctx = TlsContext::make_server(cert_path, key_path, err);
+        if (!tls_ctx) {
+            std::cerr << "[Server] TLS (star://) disabled: " << err << "\n"
+                      << "          run tools/make_certs.sh to generate " << cert_path << std::endl;
+        }
+    }
+
+    net::socket_t plain_listener = make_listener(port);
+    if (!net::is_valid(plain_listener)) {
+        std::cerr << "Failed to listen on port " << port << "." << std::endl;
+        return 1;
+    }
+    std::cout << "[Server] STWP (moon://) listening on port " << port << std::endl;
+
+    std::thread tls_thread;
+    if (tls_ctx) {
+        net::socket_t tls_listener = make_listener(tls_port);
+        if (!net::is_valid(tls_listener)) {
+            std::cerr << "Failed to listen on TLS port " << tls_port << "." << std::endl;
+        } else {
+            std::cout << "[Server] STWP-over-TLS (star://) listening on port " << tls_port << std::endl;
+            tls_thread = std::thread(accept_loop, tls_listener, tls_ctx.get());
+        }
+    }
+
+    accept_loop(plain_listener, nullptr);
+
+    if (tls_thread.joinable()) tls_thread.join();
+    net::close(plain_listener);
     return 0;
 }
